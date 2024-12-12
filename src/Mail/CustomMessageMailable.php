@@ -92,8 +92,12 @@ class CustomMessageMailable extends Mailable implements ShouldQueue
         if ($this->event) {
             $this->attachData($this->event, 'ical.ics');
         }
-        foreach ($this->files as $filename) {
-            $this->attachFromStorageDisk('s3', $filename);
+        foreach ($this->files as $file) {
+            if (Storage::disk('s3')->exists($file['sanitizedPath'])) {
+                $this->attachFromStorageDisk('s3', $file['sanitizedPath'], $file['originalName']);
+            } else {
+                \Log::error("File not found: {$file['sanitizedPath']}");
+            }
         }
 
         return $this;

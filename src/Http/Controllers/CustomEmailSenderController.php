@@ -165,8 +165,11 @@ class CustomEmailSenderController
 
         $files = $requestData['files'];
         $attachments = [];
-        foreach ($files as $key => $file) {
-            array_push($attachments, 'email_attachments/' . $file['name']);
+        foreach ($files as $file) {
+            $attachments[] = [
+                'sanitizedPath' => 'email_attachments/' . $file['name'],
+                'originalName' => $file['originalName'], // Uses the originalName now set by the front end
+            ];
         }
         $eventData = $requestData['event'];
 

@@ -5,11 +5,7 @@
       defer
       src="https://unpkg.com/vue-upload-component"
     ></script>
-    <script
-      type="application/javascript"
-      defer
-      src="https://unpkg.com/vue"
-    ></script>
+    <script type="application/javascript" defer src="https://unpkg.com/vue"></script>
     <div class="w-3/5">
       <h3 class="text-base text-80 font-bold mb-3">
         {{ messages["from-header"] }}
@@ -91,11 +87,7 @@
           />
         </div>
         <div class="mb-8" v-if="useFileContent">
-          <file-select
-            @input="loadFile"
-            v-model="htmlFile"
-            :messages="messages"
-          />
+          <file-select @input="loadFile" v-model="htmlFile" :messages="messages" />
         </div>
         <div class="mb-8" v-else>
           <p class="mb-2">{{ messages["content-copy"] }}</p>
@@ -109,9 +101,7 @@
           </div>
           <div
             class="drop-class"
-            :class="
-              $refs.upload && $refs.upload.dropActive ? 'upload-highlight' : ''
-            "
+            :class="$refs.upload && $refs.upload.dropActive ? 'upload-highlight' : ''"
           >
             <file-upload
               v-if="!loading"
@@ -130,18 +120,14 @@
               Add Attachment
             </file-upload>
             <ul>
-              <li
-                class="attachment-item"
-                v-for="(file, index) in files"
-                :key="file.id"
-              >
+              <li class="attachment-item" v-for="(file, index) in files" :key="file.id">
                 <img v-if="isImage(file.name)" :src="file.blob" />
                 <img
                   v-else
                   src="https://findicons.com/files/icons/1579/devine/256/file.png"
                 />
                 <span class="text-wrapper"
-                  ><span class="file-name">{{ file.name }}</span>
+                  ><span class="file-name">{{ file.originalName || file.name }}</span>
                   <!-- <span class="errors"
                                         >Error: {{ file.error }}, Success:
                                         {{ file.success }}</span
@@ -166,10 +152,7 @@
               </li>
             </ul>
 
-            <div
-              class="drop-here-label"
-              v-if="$refs.upload && $refs.upload.dropActive"
-            >
+            <div class="drop-here-label" v-if="$refs.upload && $refs.upload.dropActive">
               Drop here...
             </div>
           </div>
@@ -207,11 +190,7 @@
               @click="sendMessage"
               :disabled="isThinking || !formIsValid()"
             >
-              {{
-                loading
-                  ? messages["send-message-loading"]
-                  : messages["send-message"]
-              }}
+              {{ loading ? messages["send-message-loading"] : messages["send-message"] }}
             </button>
             <button
               class="btn btn-default btn-primary"
@@ -219,9 +198,7 @@
               :disabled="isThinking || !draftIsValid()"
             >
               <span v-if="draftSaved">
-                {{
-                  draftSaving ? messages["updating"] : messages["update-draft"]
-                }}
+                {{ draftSaving ? messages["updating"] : messages["update-draft"] }}
               </span>
               <span v-else>
                 {{ draftSaving ? messages["saving"] : messages["save-draft"] }}
@@ -234,11 +211,7 @@
               @click="preview"
               :disabled="isThinking || !formIsValid()"
             >
-              {{
-                gettingPreview
-                  ? messages["preview-loading"]
-                  : messages["preview"]
-              }}
+              {{ gettingPreview ? messages["preview-loading"] : messages["preview"] }}
             </button>
           </div>
         </div>
@@ -248,20 +221,14 @@
             @click="sendMessage"
             :disabled="isThinking || !formIsValid()"
           >
-            {{
-              loading
-                ? messages["send-message-loading"]
-                : messages["send-message"]
-            }}
+            {{ loading ? messages["send-message-loading"] : messages["send-message"] }}
           </button>
           <button
             class="btn btn-default btn-secondary"
             @click="preview"
             :disabled="isThinking || !formIsValid()"
           >
-            {{
-              gettingPreview ? messages["preview-loading"] : messages["preview"]
-            }}
+            {{ gettingPreview ? messages["preview-loading"] : messages["preview"] }}
           </button>
         </div>
       </div>
@@ -326,10 +293,7 @@
       </div>
     </div>
 
-    <preview-modal
-      ref="previewModal"
-      @preview="setGettingPreview"
-    ></preview-modal>
+    <preview-modal ref="previewModal" @preview="setGettingPreview"></preview-modal>
   </div>
 </template>
 
@@ -518,34 +482,42 @@ export default {
      * @return undefined
      */
     inputFile(newFile, oldFile) {
+      if (newFile && newFile.file) {
+        // Store the original file name before sanitizing
+        newFile.originalName = newFile.file.name;
+
+        // Now sanitize the filename used for upload/storage
+        let sanitized = this.sanitizeFilename(newFile.file.name);
+        newFile.name = sanitized;
+      }
+
+      // Proceed with your existing logic
       let exists = false;
       for (let i = 0; i < this.files.length; i++) {
         const file = this.files[i];
-        exists = Object.keys(file).some(function () {
-          return file["name"] == newFile.name && file["id"] != newFile.id;
-        });
+        exists = file.name === newFile.name && file.id !== newFile.id;
         if (exists) break;
       }
 
       if (exists) {
-        var removeIndex = this.files
-          .map((file) => file.name)
-          .indexOf(newFile.name);
-
-        ~removeIndex && this.files.splice(removeIndex, 1);
+        const removeIndex = this.files.map((file) => file.name).indexOf(newFile.name);
+        if (~removeIndex) this.files.splice(removeIndex, 1);
       }
 
       newFile.headers.name = newFile.name;
       newFile.headers.type = newFile.type;
-      // Automatic upload
-      if (
-        Boolean(newFile) !== Boolean(oldFile) ||
-        oldFile.error !== newFile.error
-      ) {
+
+      if (Boolean(newFile) !== Boolean(oldFile) || oldFile.error !== newFile.error) {
         if (!this.$refs.upload.active) {
           this.$refs.upload.active = true;
         }
       }
+    },
+    sanitizeFilename(filename) {
+      return filename
+        .normalize("NFD") // Normalize Unicode characters
+        .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+        .replace(/[^a-zA-Z0-9.-]/g, "_"); // Replace invalid characters
     },
 
     createEventChange(val) {
@@ -863,12 +835,12 @@ ul {
   position: absolute;
   right: 15px;
   top: 26px;
-  filter: invert(40%) sepia(37%) saturate(4513%) hue-rotate(335deg)
-    brightness(91%) contrast(96%);
+  filter: invert(40%) sepia(37%) saturate(4513%) hue-rotate(335deg) brightness(91%)
+    contrast(96%);
 }
 .trash-box:hover {
-  filter: invert(20%) sepia(61%) saturate(2458%) hue-rotate(340deg)
-    brightness(104%) contrast(117%);
+  filter: invert(20%) sepia(61%) saturate(2458%) hue-rotate(340deg) brightness(104%)
+    contrast(117%);
 }
 .upload-highlight {
   border: 1px dotted rgba(0, 0, 0, 0.3);
