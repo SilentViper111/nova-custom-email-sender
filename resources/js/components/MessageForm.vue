@@ -112,7 +112,7 @@
               drop=".drop-class"
               :headers="{ 'X-CSRF-Token': token }"
               :multiple="true"
-              :size="1024 * 1024 * 10"
+              :size="1024 * 1024 * 100"
               :maximum="10"
               @input-file="inputFile"
               @input-filter="inputFilter"
