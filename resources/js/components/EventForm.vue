@@ -82,7 +82,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { ToggleButton } from '@hennge/vue3-toggle-button';
+import ToggleButton from './ToggleButton.vue';
 import flatPickr from 'vue-flatpickr-component';
 import 'flatpickr/dist/flatpickr.css';
 

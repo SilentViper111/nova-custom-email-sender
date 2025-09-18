@@ -61,7 +61,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import AutoCompleteInput from "./AutoCompleteInput.vue";
-import { ToggleButton } from '@hennge/vue3-toggle-button'
+import ToggleButton from './ToggleButton.vue'
 import EmailUtility from "../services/EmailUtility";
 import Recipient from "../interfaces/Recipient";
 
