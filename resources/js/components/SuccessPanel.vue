@@ -1,9 +1,9 @@
 <template>
     <div class="flex-row flex-1 m-6">
-        <div class="flex flex-wrap h-full w-full border-success rounded-lg relative overflow-hidden">
-            <div class="success-background z-0"></div>
+        <div class="flex flex-wrap h-full w-full border-green-500 rounded-lg relative overflow-hidden">
+            <div class="absolute w-full h-full bg-green-500 opacity-70 z-0"></div>
             <div class="content-wrapper flex items-center flex-col justify-center w-full p-8 relative z-10">
-                <div class="img-wrapper flex items-center justify-center rounded-full">
+                <div class="img-wrapper flex items-center justify-center rounded-full w-48 h-48">
                     <div class="relative" style="margin: 0 -40px;">
                         <svg width="200" height="150" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" data-reactroot="">
                             <path d="M401.998 586.29C560.113 586.29 688.29 458.113 688.29 299.998C688.29 141.884 560.113 13.707 401.998 13.707C243.884 13.707 115.707 141.884 115.707 299.998C115.707 458.113 243.884 586.29 401.998 586.29Z" fill="#62a8a4"></path>
@@ -16,23 +16,23 @@
                     </div>
                 </div>
 
-                <div class="w-1/2 mt-6 mb-6 text-center" style="color: var(--white)">
+                <div class="w-1/2 mt-6 mb-6 text-center text-white">
                     <h2 class="text-3xl mb-6">{{ messages['success-header'] }}</h2>
                     <p class="text-lg mb-8">{{ messages['success-copy'] }}</p>
                     <p class="text-center" v-if="nebulaSenderActive">
                         <router-link :to="{ name: 'nebula-sender-sent' }"
-                                     class="btn btn-default btn-secondary mr-2"
+                                     class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 mr-2"
                         >
                             {{ messages['view-sent-messages'] }}
                         </router-link>
-                        <button class="btn btn-default btn-white text-primary"
+                        <button class="px-4 py-2 bg-white text-blue-500 rounded hover:bg-gray-100"
                                 type="button"
                                 @click="$emit('reset')">
                             {{ messages['create-new-message'] }}
                         </button>
                     </p>
                     <p class="text-center" v-else>
-                        <button class="btn btn-default btn-white text-primary" type="button" @click="$emit('reset')">
+                        <button class="px-4 py-2 bg-white text-blue-500 rounded hover:bg-gray-100" type="button" @click="$emit('reset')">
                             {{ messages['start-over'] }}
                         </button>
                     </p>
@@ -42,46 +42,14 @@
     </div>
 </template>
 
-<script>
-    import Translations from "../mixins/Translations";
-    import NebulaSenderService from "../services/NebulaSenderService";
+<script setup>
+import { ref, computed } from 'vue';
+import TranslationService from "../services/TranslationService";
+import NebulaSenderService from "../services/NebulaSenderService";
 
-    export default {
-        name: "SuccessPanel",
-        mixins: [
-            Translations,
-        ],
-        components: {
-            //
-        },
-        props: {
-            messages: Object
-        },
-        computed: {
-            successAnimation() {
-                return {
-                    // animationData: ApprovedAnimation,
-                }
-            },
-            nebulaSenderActive() {
-                return NebulaSenderService.active;
-            }
-        }
-    }
+const emit = defineEmits(['reset']);
+
+const messages = ref(TranslationService.localization);
+const nebulaSenderActive = computed(() => NebulaSenderService.active);
+
 </script>
-
-<style scoped>
-    .success-background {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background-color: var(--success);
-        opacity: .7;
-        z-index: 0;
-    }
-    .img-wrapper {
-        width: 200px;
-        height: 200px;
-        /*background-color: var(--white);*/
-    }
-</style>

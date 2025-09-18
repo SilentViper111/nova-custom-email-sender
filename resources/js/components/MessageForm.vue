@@ -1,19 +1,13 @@
 <template>
   <div class="flex">
-    <script
-      type="application/javascript"
-      defer
-      src="https://unpkg.com/vue-upload-component"
-    ></script>
-    <script type="application/javascript" defer src="https://unpkg.com/vue"></script>
     <div class="w-3/5">
-      <h3 class="text-base text-80 font-bold mb-3">
+      <h3 class="text-base text-gray-800 font-bold mb-3">
         {{ messages["from-header"] }}
       </h3>
 
       <div class="mb-8">
         <p class="mb-2 italic">{{ messages["from-copy"] }}</p>
-        <select-control
+        <select
           v-model="from"
           class="w-full form-control form-select"
           :disabled="config.from.options.length <= 1 || isThinking"
@@ -28,25 +22,25 @@
           >
             {{ option.name }}
           </option>
-        </select-control>
+        </select>
       </div>
 
       <div class="mb-8">
-        <h3 class="text-base text-80 font-bold mb-3">
+        <h3 class="text-base text-gray-800 font-bold mb-3">
           {{ messages["subject-header"] }}
         </h3>
         <div class="mb-8">
           <p class="mb-2 italic">{{ messages["subject-copy"] }}</p>
           <counter-input
             :placeholder="messages['subject-placeholder']"
-            :model.sync="subject"
+            v-model="subject"
             :disabled="isThinking"
           ></counter-input>
         </div>
       </div>
 
       <div class="mb-8">
-        <h3 class="text-base text-80 font-bold mb-3">
+        <h3 class="text-base text-gray-800 font-bold mb-3">
           {{ messages["recipients-header"] }}
         </h3>
         <recipient-form
@@ -54,25 +48,25 @@
           @add="addAddress"
           @addGroup="addGroup"
           @removeGroup="removeGroup"
-          :send-to-all.sync="sendToAll"
+          v-model:send-to-all="sendToAll"
           :loading="isThinking"
           :recipients="recipients"
         ></recipient-form>
       </div>
 
       <div class="mb-8">
-        <h3 class="text-base text-80 font-bold mb-3">
+        <h3 class="text-base text-gray-800 font-bold mb-3">
           {{ messages["event-header"] }}
         </h3>
         <event-form
           :messages="messages"
-          @createEventChange="createEventChange"
-          @changeData="changeEventData"
+          @create-event-change="createEventChange"
+          @change-data="changeEventData"
         ></event-form>
       </div>
 
       <div class="mb-8">
-        <h3 class="text-base text-80 font-bold mb-3">
+        <h3 class="text-base text-gray-800 font-bold mb-3">
           {{ messages["content-header"] }}
         </h3>
 
@@ -81,68 +75,58 @@
           <toggle-button
             :width="60"
             :height="26"
-            color="var(--primary)"
+            :color="{checked: '#21b978', unchecked: '#89a5b7'}"
             v-model="useFileContent"
             :disabled="loading"
           />
         </div>
         <div class="mb-8" v-if="useFileContent">
-          <file-select @input="loadFile" v-model="htmlFile" :messages="messages" />
+          <file-select v-model="htmlFile" :messages="messages" />
         </div>
         <div class="mb-8" v-else>
           <p class="mb-2">{{ messages["content-copy"] }}</p>
           <div class="input-wrapper">
-            <quill-editor
-              class="quill-editor"
+            <QuillEditor
+              theme="snow"
+              v-model:content="htmlContent"
               :options="quillEditorOptions"
-              v-model="htmlContent"
               ref="myQuillEditor"
-            ></quill-editor>
+            />
           </div>
           <div
-            class="drop-class"
-            :class="$refs.upload && $refs.upload.dropActive ? 'upload-highlight' : ''"
+            class="border border-dashed border-gray-400 p-4 mt-4"
+            :class="{ 'border-blue-500': dropActive }"
           >
             <file-upload
               v-if="!loading"
-              class="file-upload-field"
+              class="w-full text-center py-4 cursor-pointer"
               ref="upload"
               v-model="files"
-              put-action="/upload/addFiles"
-              drop=".drop-class"
-              :headers="{ 'X-CSRF-Token': token }"
               :multiple="true"
               :size="1024 * 1024 * 100"
               :maximum="10"
               @input-file="inputFile"
-              @input-filter="inputFilter"
             >
               Add Attachment
             </file-upload>
             <ul>
-              <li class="attachment-item" v-for="(file, index) in files" :key="file.id">
-                <img v-if="isImage(file.name)" :src="file.blob" />
+              <li class="flex items-center border-t border-gray-200 mt-2 pt-2" v-for="(file, index) in files" :key="file.id">
+                <img v-if="isImage(file.name)" :src="file.blob" class="w-16 h-16 object-contain" />
                 <img
                   v-else
                   src="https://findicons.com/files/icons/1579/devine/256/file.png"
+                  class="w-16 h-16 object-contain"
                 />
-                <span class="text-wrapper"
-                  ><span class="file-name">{{ file.originalName || file.name }}</span>
-                  <!-- <span class="errors"
-                                        >Error: {{ file.error }}, Success:
-                                        {{ file.success }}</span
-                                    > -->
+                <span class="ml-4 flex-1">
+                    <span class="font-bold">{{ file.name }}</span>
                 </span>
-                <span
-                  class="status"
-                  :class="file.success == true ? 'success' : 'fail'"
-                ></span>
-                <span class="trash-box" @click="removeFile(index)">
+                <span @click="removeFile(index)" class="cursor-pointer text-red-500">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
                     height="24"
                     viewBox="0 0 24 24"
+                    fill="currentColor"
                   >
                     <path
                       d="M3 6v18h18v-18h-18zm5 14c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm4-18v2h-20v-2h5.711c.9 0 1.631-1.099 1.631-2h5.315c0 .901.73 2 1.631 2h5.712z"
@@ -152,7 +136,7 @@
               </li>
             </ul>
 
-            <div class="drop-here-label" v-if="$refs.upload && $refs.upload.dropActive">
+            <div class="text-center mt-4" v-if="dropActive">
               Drop here...
             </div>
           </div>
@@ -160,73 +144,25 @@
       </div>
 
       <div class="mt-4">
-        <div v-if="nebulaSenderActive">
-          <div v-if="existingMessage">
-            <h3 class="text-base text-80 font-bold mb-3">
-              {{ messages["send-preview-update-draft"] }}
-            </h3>
-            <p class="mb-2">
-              {{ messages["preview-update-draft-copy"] }}
-            </p>
-          </div>
-          <div v-else>
-            <h3 class="text-base text-80 font-bold mb-3">
-              {{ messages["send-preview-draft"] }}
-            </h3>
-            <p class="mb-2">{{ messages["preview-draft-copy"] }}</p>
-          </div>
-        </div>
-        <div v-else>
-          <h3 class="text-base text-80 font-bold mb-3">
+        <div>
+          <h3 class="text-base text-gray-800 font-bold mb-3">
             {{ messages["send-preview"] }}
           </h3>
           <p class="mb-2">{{ messages["preview-copy"] }}</p>
         </div>
 
-        <div class="flex" v-if="nebulaSenderActive">
-          <div class="flex-1">
-            <button
-              class="btn btn-default btn-primary"
-              @click="sendMessage"
-              :disabled="isThinking || !formIsValid()"
-            >
-              {{ loading ? messages["send-message-loading"] : messages["send-message"] }}
-            </button>
-            <button
-              class="btn btn-default btn-primary"
-              @click="saveDraft"
-              :disabled="isThinking || !draftIsValid()"
-            >
-              <span v-if="draftSaved">
-                {{ draftSaving ? messages["updating"] : messages["update-draft"] }}
-              </span>
-              <span v-else>
-                {{ draftSaving ? messages["saving"] : messages["save-draft"] }}
-              </span>
-            </button>
-          </div>
-          <div class="text-right">
-            <button
-              class="btn btn-default btn-secondary"
-              @click="preview"
-              :disabled="isThinking || !formIsValid()"
-            >
-              {{ gettingPreview ? messages["preview-loading"] : messages["preview"] }}
-            </button>
-          </div>
-        </div>
-        <div v-else>
+        <div>
           <button
-            class="btn btn-default btn-primary"
+            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             @click="sendMessage"
-            :disabled="isThinking || !formIsValid()"
+            :disabled="isThinking || !formIsValid"
           >
             {{ loading ? messages["send-message-loading"] : messages["send-message"] }}
           </button>
           <button
-            class="btn btn-default btn-secondary"
+            class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 ml-2"
             @click="preview"
-            :disabled="isThinking || !formIsValid()"
+            :disabled="isThinking || !formIsValid"
           >
             {{ gettingPreview ? messages["preview-loading"] : messages["preview"] }}
           </button>
@@ -236,12 +172,12 @@
 
     <div class="w-2/5">
       <div class="recipients-list px-6">
-        <h3 class="text-base text-80 font-bold mb-3">
+        <h3 class="text-base text-gray-800 font-bold mb-3">
           {{ messages["recipients-list-header"] }}
           {{ !sendToAll ? `(${recipients.length})` : "" }}
         </h3>
         <div>
-          <ul class="divide-y divide-gray-200" style="padding-left: 0">
+          <ul class="divide-y divide-gray-200">
             <recipient-item
               :recipient="recipient"
               v-for="(recipient, index) of recipients"
@@ -252,21 +188,13 @@
         </div>
 
         <div
-          v-if="
-            (!recipients && sendToAll === false) ||
-            (recipients.length === 0 && sendToAll === false)
-          "
-          class="relative rounded-md p-4 overflow-hidden"
+          v-if="!recipients.length && !sendToAll"
+          class="relative rounded-md p-4 bg-red-100 border border-red-400 text-red-700"
         >
-          <div
-            class="absolute w-full h-full bg-danger opacity-25"
-            style="left: 0; top: 0"
-          ></div>
-          <div class="relative flex">
+          <div class="flex">
             <div class="flex-shrink-0">
               <svg
-                class="h-5 w-5 text-danger"
-                x-description="Heroicon name: x-circle"
+                class="h-5 w-5 text-red-400"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
@@ -279,14 +207,14 @@
               </svg>
             </div>
             <div class="ml-3">
-              <h3 class="text-sm leading-5 font-medium text-danger">
+              <h3 class="text-sm leading-5 font-medium text-red-800">
                 {{ messages["recipients-no-address-found"] }}
               </h3>
             </div>
           </div>
         </div>
-        <div v-if="sendToAll === true" class="p-4 bg-primary rounded">
-          <p class="text-white">
+        <div v-if="sendToAll" class="p-4 bg-blue-500 text-white rounded">
+          <p>
             {{ messages["recipients-send-all"] }}
           </p>
         </div>
@@ -297,583 +225,234 @@
   </div>
 </template>
 
-<script src="../../../node_modules/quill-image-resize-module/image-resize.min.js"></script>
-<script>
-import "quill/dist/quill.core.css";
-import "quill/dist/quill.snow.css";
-import "quill/dist/quill.bubble.css";
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
+import { ToggleButton } from '@hennge/vue3-toggle-button';
+import FileUpload from 'vue-upload-component';
 
-import Quill from "quill";
-
-window.Quill = Quill;
-
-// const ImageResize = require('quill-image-resize-module').default
-// Quill.register('modules/imageResize', ImageResize);
-
-import { ImageDrop } from "quill-image-drop-module";
-// import { ImageUploader } from "quill-image-uploader";
-// import ImageResize from "quill-image-resize-module";
-import ImageResize from "quill-image-resize-module--fix-imports-error";
-
-Quill.register("modules/imageDrop", ImageDrop);
-Quill.register("modules/imageResize", ImageResize);
-// Quill.register("modules/imageUploader", ImageUploader);
-
-import { quillEditor } from "vue-quill-editor";
-// import { quillRedefine } from "vue-quill-editor-upload"; //Import image upload
-
-import Translations from "../mixins/Translations";
-import CounterInput from "./CounterInput";
-import RecipientForm from "./RecipientForm";
-import EventForm from "./EventForm";
-import FileSelect from "./FileSelect";
-import PreviewModal from "./PreviewModal";
-import RecipientItem from "./RecipientItem";
+import CounterInput from "./CounterInput.vue";
+import RecipientForm from "./RecipientForm.vue";
+import EventForm from "./EventForm.vue";
+import FileSelect from "./FileSelect.vue";
+import PreviewModal from "./PreviewModal.vue";
+import RecipientItem from "./RecipientItem.vue";
 
 import StorageService from "../services/StorageService";
-
-import { ToggleButton } from "vue-js-toggle-button";
 import NebulaSenderService from "../services/NebulaSenderService";
 import ApiService from "../services/ApiService";
-export default {
-  name: "MessageForm",
-  mixins: [Translations],
-  props: {
+import TranslationService from '../services/TranslationService';
+
+const props = defineProps({
     existingMessage: Object,
-  },
-  components: {
-    PreviewModal,
-    CounterInput,
-    RecipientForm,
-    EventForm,
-    FileSelect,
-    quillEditor,
-    ToggleButton,
-    RecipientItem,
-  },
-  data() {
-    return {
-      upload: "",
-      headers: {},
-      loading: false,
-      draftSaving: false,
-      from: "",
-      subject: "",
-      sendToAll: false,
-      useFileContent: false,
-      gettingPreview: false,
-      recipients: [],
-      htmlFile: null,
-      htmlContent: "",
-      draftSaved: false,
-      files: [],
-      event: {
-        createEvent: false,
-        eventDetails: {
-          eventTitle: "",
-          eventDescription: "",
-          eventFullDay: false,
-          eventDateFrom: null,
-          eventDateTo: null,
-        },
-      },
-    };
-  },
-  beforeMount() {
-    this.loading = true;
-    // Sets draft content
-    if (this.existingMessage && !_.isEmpty(this.existingMessage)) {
-      this.from = this.existingMessage.from;
-      this.subject = this.existingMessage.subject;
-      this.sendToAll = this.existingMessage.send_to_all;
-      this.recipients = this.existingMessage.recipients;
-      this.htmlContent = this.existingMessage.content;
-      this.draftSaved = true;
-    }
-  },
-  mounted() {
-    this.getToken();
-  },
-  computed: {
-    /**
-     * @return {Object}
-     */
-    config() {
-      return StorageService.configuration;
-    },
-    /**
-     * @return {boolean}
-     */
-    isThinking() {
-      if (this.loading || this.gettingPreview || this.draftSaving) {
-        return true;
-      }
+});
 
-      return false;
+const emit = defineEmits(['success', 'update']);
+
+const messages = ref(TranslationService.localization);
+const loading = ref(false);
+const draftSaving = ref(false);
+const from = ref('');
+const subject = ref('');
+const sendToAll = ref(false);
+const useFileContent = ref(false);
+const gettingPreview = ref(false);
+const recipients = ref([]);
+const htmlFile = ref(null);
+const htmlContent = ref('');
+const draftSaved = ref(false);
+const files = ref([]);
+const event = ref({
+    createEvent: false,
+    eventDetails: {
+        eventTitle: '',
+        eventDescription: '',
+        eventFullDay: false,
+        eventDateFrom: null,
+        eventDateTo: null,
     },
-    /**
-     * @return {Object}
-     */
-    quillConfiguration() {
-      if (!StorageService.configuration.editor) {
+});
+
+const token = ref('');
+const myQuillEditor = ref(null);
+const upload = ref(null);
+const previewModal = ref(null);
+const dropActive = ref(false);
+
+const config = computed(() => StorageService.configuration);
+const isThinking = computed(() => loading.value || gettingPreview.value || draftSaving.value);
+
+const quillEditorOptions = computed(() => {
+    if (!config.value.editor) {
         return {
-          toolbar: [
-            { header: 1 },
-            { header: 2 },
-            { header: 3 },
-            { header: 4 },
-            { list: "ordered" },
-            { list: "bullet" },
-            "bold",
-            "italic",
-            "link",
-            "image",
-          ],
+            modules: {
+                toolbar: [
+                    { header: 1 }, { header: 2 }, { header: 3 }, { header: 4 },
+                    { list: 'ordered' }, { list: 'bullet' },
+                    'bold', 'italic', 'link', 'image'
+                ],
+            },
+            theme: 'snow',
+            placeholder: messages.value['content-placeholder'],
         };
-      }
+    }
+    return {
+        ...config.value.editor,
+        theme: 'snow',
+        placeholder: messages.value['content-placeholder'],
+    };
+});
 
-      return StorageService.configuration.editor;
-    },
-    /**
-     * @return {Object}
-     */
-    quillEditorOptions() {
-      let rtrn = {
-        modules: {
-          ...this.quillConfiguration,
+const nebulaSenderActive = computed(() => NebulaSenderService.active);
 
-          imageResize: {
-            modules: ["Resize", "DisplaySize"],
-          },
-          imageDrop: true,
-        },
-        theme: "snow",
-        placeholder: this.messages["content-placeholder"],
-      };
-      return rtrn;
-    },
-    quillEditor() {
-      return this.$refs.myQuillEditor.quill;
-    },
-    /**
-     * @return {boolean}
-     */
-    nebulaSenderActive() {
-      return NebulaSenderService.active;
-    },
-  },
-  methods: {
-    getToken() {
-      Nova.request()
-        .get("/token")
-        .then((response) => {
-          this.token = response.data;
-          this.loading = false;
-        })
-        .catch((error) => {
-          this.$toasted.show(error.response.data, { type: "error" });
-          this.loading = false;
-        });
-    },
-    /**
-     * Has changed
-     * @param  Object|undefined   newFile   Read only
-     * @param  Object|undefined   oldFile   Read only
-     * @return undefined
-     */
-    inputFile(newFile, oldFile) {
-      if (newFile && newFile.file) {
-        // Store the original file name before sanitizing
-        newFile.originalName = newFile.file.name;
+onMounted(async () => {
+    loading.value = true;
+    if (props.existingMessage && Object.keys(props.existingMessage).length) {
+        from.value = props.existingMessage.from;
+        subject.value = props.existingMessage.subject;
+        sendToAll.value = props.existingMessage.send_to_all;
+        recipients.value = props.existingMessage.recipients;
+        htmlContent.value = props.existingMessage.content;
+        draftSaved.value = true;
+    }
 
-        // Now sanitize the filename used for upload/storage
-        let sanitized = this.sanitizeFilename(newFile.file.name);
-        newFile.name = sanitized;
-      }
+    try {
+        const response = await Nova.request().get('/token');
+        token.value = response.data;
+    } catch (error) {
+        alert(error.response.data);
+    } finally {
+        loading.value = false;
+    }
+});
 
-      // Proceed with your existing logic
-      let exists = false;
-      for (let i = 0; i < this.files.length; i++) {
-        const file = this.files[i];
-        exists = file.name === newFile.name && file.id !== newFile.id;
-        if (exists) break;
-      }
+function inputFile(newFile, oldFile) {
+    if (newFile && !oldFile) {
+        // add
+    }
+    if (newFile && oldFile) {
+        // update
+    }
+    if (!newFile && oldFile) {
+        // remove
+    }
+}
 
-      if (exists) {
-        const removeIndex = this.files.map((file) => file.name).indexOf(newFile.name);
-        if (~removeIndex) this.files.splice(removeIndex, 1);
-      }
+function createEventChange(val) {
+    event.value.createEvent = val;
+}
 
-      newFile.headers.name = newFile.name;
-      newFile.headers.type = newFile.type;
+function changeEventData(val) {
+    event.value.eventDetails = val;
+}
 
-      if (Boolean(newFile) !== Boolean(oldFile) || oldFile.error !== newFile.error) {
-        if (!this.$refs.upload.active) {
-          this.$refs.upload.active = true;
+function removeFile(index) {
+    files.value.splice(index, 1);
+}
+
+function isImage(typeName) {
+    return /\.(jpeg|jpe|jpg|gif|png|webp)$/i.test(typeName);
+}
+
+function addAddress(userObject) {
+    recipients.value.push(userObject);
+}
+
+function addGroup(userArray) {
+    for (const [key, value] of Object.entries(userArray)) {
+        const newUser = { email: key, name: value };
+        if (!recipients.value.some(recipient => recipient.email === key)) {
+            recipients.value.push(newUser);
         }
-      }
-    },
-    sanitizeFilename(filename) {
-      return filename
-        .normalize("NFD") // Normalize Unicode characters
-        .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
-        .replace(/[^a-zA-Z0-9.-]/g, "_"); // Replace invalid characters
-    },
+    }
+}
 
-    createEventChange(val) {
-      this.event.createEvent = val;
-    },
+function removeGroup(userArray) {
+    for (const [key, value] of Object.entries(userArray)) {
+        recipients.value = recipients.value.filter(recipient => recipient.email !== key);
+    }
+}
 
-    changeEventData(val) {
-      this.event.eventDetails = val;
-    },
+function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        htmlContent.value = e.target.result;
+    };
+    reader.readAsText(file);
+}
 
-    /**
-     * Pretreatment
-     * @param  Object|undefined   newFile   Read and wriste
-     * @param  Object|undefined   oldFile   Read only
-     * @param  Function           prevent   Prevent changing
-     * @return undefined
-     */
-    inputFilter: function (newFile, oldFile, prevent) {
-      // Create a blob field
-      newFile.blob = "";
-      let URL = window.URL || window.webkitURL;
-      if (URL && URL.createObjectURL) {
-        newFile.blob = URL.createObjectURL(newFile.file);
-      }
-    },
-
-    removeFile(index) {
-      this.files.splice(index, 1);
-    },
-
-    isImage(typeName) {
-      if (!/\.(jpeg|jpe|jpg|gif|png|webp)$/i.test(typeName)) {
-        return false;
-      }
-      return true;
-    },
-
-    /**
-     * @name addAddress
-     * @description Add recipient to the list
-     * @param {Object} userObject
-     */
-    addAddress(userObject) {
-      this.recipients.push(userObject);
-    },
-
-    /**
-     * @name addGroup
-     * @description Add a group of recipients to the list
-     * @param {Array} userArray
-     */
-    addGroup(userArray) {
-      for (const [key, value] of Object.entries(userArray)) {
-        let newUser = { email: key, name: value };
-        if (!this.recipients.some((recipient) => recipient["email"] === key)) {
-          this.recipients.push(newUser);
+const formIsValid = computed(() => {
+    if (!subject.value || !htmlContent.value) return false;
+    if (event.value.createEvent) {
+        const { eventFullDay, eventDateFrom, eventDateTo, eventTitle } = event.value.eventDetails;
+        if ((!eventFullDay && (!eventDateFrom || !eventDateTo)) || !eventTitle) {
+            return false;
         }
-      }
-    },
+    }
+    return recipients.value.length > 0 || sendToAll.value;
+});
 
-    /**
-     * @name removeGroup
-     * @description Remove a group of recipients from the list
-     * @param {Array} userArray
-     */
-    removeGroup(userArray) {
-      for (const [key, value] of Object.entries(userArray)) {
-        if (this.recipients.some((recipient) => recipient["email"] === key)) {
-          this.recipients = this.recipients.filter(function (recipient) {
-            return recipient.email !== key;
-          });
-        }
-      }
-    },
+const draftIsValid = computed(() => {
+    return htmlContent.value && from.value;
+});
 
-    loadFile(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.$emit("load", e.target.result);
-        this.htmlContent = e.target.result;
-      };
-      reader.readAsText(file);
-    },
+function setLoading(isLoading = true, isDraft = false) {
+    if (isDraft) {
+        draftSaving.value = isLoading;
+    } else {
+        loading.value = isLoading;
+    }
+}
 
-    /**
-     * @name formIsValid
-     * @description Is the form ready to be sent/submitted
-     * @return {boolean}
-     */
-    formIsValid() {
-      if (
-        (this.subject && this.subject.length === 0) ||
-        (this.htmlContent && this.htmlContent.length === 0) ||
-        (this.event.createEvent &&
-          ((!this.event.eventDetails.eventFullDay &&
-            (this.event.eventDetails.eventDateFrom == null ||
-              this.event.eventDetails.eventDateTo == null)) ||
-            this.event.eventDetails.eventTitle.length === 0))
-      ) {
-        return false;
-      }
-
-      if (this.recipients && this.recipients.length === 0 && !this.sendToAll) {
-        return false;
-      }
-
-      return true;
-    },
-    /**
-     * @name draftIsValid
-     * @description Is the form ready to be saved to a draft
-     * @return {boolean}
-     */
-    draftIsValid() {
-      return !(this.htmlContent.length === 0 || this.from.length === 0);
-    },
-    /**
-     * @param {boolean} loading
-     * @param {boolean} isDraft
-     * @return {void}
-     */
-    setLoading(loading = true, isDraft = false) {
-      if (!this.useFileContent) {
-        this.quillEditor.enable(!loading);
-      }
-      if (isDraft) {
-        this.draftSaving = loading;
-      } else {
-        this.loading = loading;
-      }
-    },
-
-    /**
-     * @name sendMessage
-     * @description Sends the message with the defined
-     * @return {void}
-     */
-    sendMessage() {
-      let vm = this;
-
-      vm.setLoading();
-
-      // this.$refs.upload.active = true;
-
-      ApiService.sendMessage(
-        this.from,
-        this.subject,
-        this.sendToAll,
-        this.recipients,
-        this.htmlContent,
-        this.files,
-        this.event
-      )
-        .then((response) => {
-          vm.$toasted.show(response, { type: "success" });
-          vm.$emit("success");
-          vm.setLoading(false);
-        })
-        .catch((error) => {
-          let status = error.status;
-
-          if (status === 422) {
-            this.$toasted.show(error.data.message, {
-              type: "error",
-            });
-          } else {
-            this.$toasted.show(error.statusText, { type: "error" });
-          }
-
-          vm.setLoading(false);
-        });
-    },
-    /**
-     * @param {boolean} loading
-     */
-    setGettingPreview(loading = true) {
-      if (!this.useFileContent) {
-        this.quillEditor.enable(!loading);
-      }
-      this.gettingPreview = loading;
-    },
-
-    preview() {
-      this.$refs.previewModal.preview(
-        this.from,
-        this.subject,
-        this.recipients,
-        this.htmlContent,
-        this.sendToAll
-      );
-    },
-
-    reset() {
-      this.subject = "";
-      this.sendToAll = false;
-      this.complete = false;
-      this.recipients = [];
-      this.htmlContent = "";
-      this.useFileContent = false;
-    },
-
-    /**
-     * @name removeRecipient
-     * @param {Number} index
-     * @return {void}
-     */
-    removeRecipient(index) {
-      this.recipients.splice(index, 1);
-    },
-
-    saveDraft() {
-      this.setLoading(true, true);
-      let template = StorageService.configuration.template.view;
-      let request;
-
-      if (this.existingMessage) {
-        request = ApiService.updateDraft(
-          this.existingMessage.id,
-          this.htmlContent,
-          this.from,
-          this.existingMessage.template,
-          this.subject,
-          this.recipients,
-          this.sendToAll
+async function sendMessage() {
+    setLoading(true);
+    try {
+        const response = await ApiService.sendMessage(
+            from.value,
+            subject.value,
+            sendToAll.value,
+            recipients.value,
+            htmlContent.value,
+            files.value,
+            event.value
         );
-      } else {
-        request = ApiService.createDraft(
-          this.from,
-          template,
-          this.htmlContent,
-          this.subject,
-          this.recipients,
-          this.sendToAll
-        );
-      }
+        Nova.success(response);
+        emit('success');
+    } catch (error) {
+        if (error.response.status === 422) {
+            Nova.error(error.response.data.message);
+        } else {
+            Nova.error(error.response.statusText);
+        }
+    } finally {
+        setLoading(false);
+    }
+}
 
-      request
-        .then((response) => {
-          this.$toasted.show(this.messages["draft-saved"], {
-            type: "success",
-          });
+function setGettingPreview(isLoading = true) {
+    gettingPreview.value = isLoading;
+}
 
-          if (this.existingMessage) {
-            this.setLoading(false, true);
-            this.$emit("update", response.data);
-          } else {
-            this.$router.push({
-              name: "nebula-sender-drafts-edit",
-              params: { id: response.data.id },
-            });
-          }
-        })
-        .catch((error) => {
-          let status = error.status;
+function preview() {
+    previewModal.value.preview(
+        from.value,
+        subject.value,
+        recipients.value,
+        htmlContent.value,
+        sendToAll.value
+    );
+}
 
-          if (status === 422) {
-            this.$toasted.show(error.data.message, {
-              type: "error",
-            });
-          } else {
-            this.$toasted.show(error.statusText, { type: "error" });
-          }
-          this.setLoading(false, true);
-        });
-    },
-  },
-};
+function reset() {
+    subject.value = '';
+    sendToAll.value = false;
+    recipients.value = [];
+    htmlContent.value = '';
+    useFileContent.value = false;
+}
+
+function removeRecipient(index) {
+    recipients.value.splice(index, 1);
+}
 </script>
-
-<style scoped>
-ul {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-}
-.attachment-item {
-  position: relative;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  margin-top: 10px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 25px;
-  padding-right: 55px;
-  width: 100%;
-  height: 80px;
-  overflow: hidden;
-}
-.attachment-item img {
-  float: left;
-  width: 80px;
-  height: 100%;
-  object-fit: contain;
-}
-.text-wrapper {
-  overflow-wrap: break-word;
-  text-overflow: ellipsis;
-  line-height: 60px;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-.file-upload-field {
-  width: 100%;
-  border: 2px solid lightsteelblue;
-  margin-top: 1rem;
-  padding: 0.5rem;
-  font-size: 1.5rem;
-}
-.file-upload-field:hover {
-  border: 2px solid lightblue;
-}
-.file-name {
-  font-weight: bold;
-}
-.trash-box {
-  position: absolute;
-  right: 15px;
-  top: 26px;
-  filter: invert(40%) sepia(37%) saturate(4513%) hue-rotate(335deg) brightness(91%)
-    contrast(96%);
-}
-.trash-box:hover {
-  filter: invert(20%) sepia(61%) saturate(2458%) hue-rotate(340deg) brightness(104%)
-    contrast(117%);
-}
-.upload-highlight {
-  border: 1px dotted rgba(0, 0, 0, 0.3);
-}
-.drop-here-label {
-  width: 83px;
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-}
-.status {
-  position: absolute;
-  left: 9px;
-  top: 28px;
-}
-.status.success:before {
-  background-color: #94e185;
-  border-color: #78d965;
-  box-shadow: 0px 0px 4px 1px #94e185;
-}
-.status.fail:before {
-  background-color: #c9404d;
-  border-color: #c42c3b;
-  box-shadow: 0px 0px 4px 1px #c9404d;
-}
-.status:before {
-  content: " ";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 10px;
-  border: 1px solid #000;
-  border-radius: 7px;
-}
-</style>

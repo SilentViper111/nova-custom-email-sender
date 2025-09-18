@@ -1,204 +1,135 @@
 <template>
-    <div class="wrapper">
+    <div class="relative w-full">
         <input type="text" class="w-full form-control form-input form-input-bordered"
-               :name="name" :id="name" v-model="interface" :disabled="this.$attrs.disabled" autocomplete="off" :placeholder="placeholder" @blur="blur" @paste="$emit('paste', $event)">
+               :name="name" :id="name" v-model="modelValue" :disabled="disabled" autocomplete="off" :placeholder="placeholder" @blur="onBlur" @paste="$emit('paste', $event)">
 
-        <div class="auto-complete-box" v-if="showResults" v-click-outside="clickOutside">
-            <div class="auto-complete-loader" v-if="loadingInterface">
-                <loading-card v-if="loading" class="flex flex-col px-6 py-4" style="min-height: 60px;"></loading-card>
+        <div class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1" v-if="showResults" v-click-outside="clickOutside">
+            <div class="p-2" v-if="loading">
+                <p>Loading...</p>
             </div>
-            <div class="auto-complete-result" @click="selectResult(result)" v-if="!loadingInterface && searchResults.length >= 1" v-for="result of searchResults">
+            <div class="p-2 hover:bg-gray-100 cursor-pointer" @click="selectResult(result)" v-if="!loading && searchResults.length >= 1" v-for="result of searchResults">
                 <span class="font-bold">{{ result.name }}</span>
-                <span class="font-italic font-light"><{{ result.email }}></span>
+                <span class="italic text-gray-500"><{{ result.email }}></span>
             </div>
-            <div class="auto-complete-no-results flex flex-row justify-center items-center" style="padding: 10px 0;" v-if="!loadingInterface && searchResults.length === 0 && searchIsEmail()">
+            <div class="p-2 flex justify-center items-center" v-if="!loading && searchResults.length === 0 && searchIsEmail">
                 <span class="mr-4">{{ messages['recipients-click-to-add'] }}</span>
-                <button @click="$emit('ad-hoc')" type="button" class="btn btn-default btn-primary">
+                <button @click="$emit('ad-hoc')" type="button" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                     {{ messages['add-address'] }}
                 </button>
             </div>
-            <div class="auto-complete-no-results" v-if="!loadingInterface && searchResults.length === 0 && !searchIsEmail()">
+            <div class="p-2 text-gray-500" v-if="!loading && searchResults.length === 0 && !searchIsEmail">
                 {{ messages['recipients-no-results'] }}.
             </div>
         </div>
     </div>
 </template>
 
-<script>
-    import EmailUtility from "../services/EmailUtility";
+<script setup>
+import { ref, watch, computed } from 'vue';
+import vClickOutside from 'click-outside-vue3';
+import EmailUtility from "../services/EmailUtility";
 
-    export default {
-        name: "AutocompleteInput",
-        props: {
-            messages: Object,
-            name: String,
-            model: String,
-            loading: {
-                type: Boolean,
-                default: false
-            },
-            results: {
-                type: Array,
-                default: () => {
-                    return []
+const props = defineProps({
+    messages: Object,
+    name: String,
+    modelValue: String,
+    loading: Boolean,
+    results: Array,
+    placeholder: {
+        type: String,
+        default: 'Search...'
+    },
+    disabled: Boolean,
+});
+
+const emit = defineEmits(['update:modelValue', 'update:loading', 'update:results', 'search', 'select', 'ad-hoc', 'paste', 'blur', 'no-results', 'click-outside']);
+
+const showResults = ref(false);
+const timer = ref(null);
+const ignoreSearch = ref(true);
+
+const modelValue = computed({
+    get: () => props.modelValue,
+    set: (value) => emit('update:modelValue', value)
+});
+
+const loading = computed({
+    get: () => props.loading,
+    set: (value) => emit('update:loading', value)
+});
+
+const searchResults = computed({
+    get: () => props.results,
+    set: (value) => emit('update:results', value)
+});
+
+watch(modelValue, (newValue, oldValue) => {
+    if (!ignoreSearch.value) {
+        if (newValue !== oldValue) {
+            if (!newValue || newValue === '') {
+                searchResults.value = [];
+                loading.value = false;
+                showResults.value = false;
+            } else {
+                if (newValue.length >= 1) {
+                    loading.value = true;
+                    showResults.value = true;
+
+                    clearTimeout(timer.value);
+
+                    timer.value = setTimeout(() => {
+                        performSearch();
+                    }, 300);
                 }
-            },
-            noResultsActionButtonText: {
-                type: String,
-                default: ''
-            },
-        },
-        data() {
-            return {
-                showResults: false,
-                canceller: Promise,
-                timer: null,
-                ignoreSearch: true,
-            }
-        },
-        computed: {
-            interface: {
-                get() {
-                    return this.model;
-                },
-                set(val) {
-                    this.$emit('update:model', val)
-                }
-            },
-            loadingInterface: {
-                get() {
-                    return this.loading;
-                },
-                set(val) {
-                    this.$emit('update:loading', val)
-                }
-            },
-            searchResults: {
-                get() {
-                    return this.results;
-                },
-                set(val) {
-                    this.$emit('update:results', val)
-                }
-            },
-            placeholder() {
-                if (this.$attrs.placeholder) {
-                    return this.$attrs.placeholder
-                } else {
-                    return 'Search...'
-                }
-            },
-        },
-        watch: {
-            model: function (newValue, oldValue) {
-                let vm = this;
-
-                if (!vm.ignoreSearch) {
-                    if (newValue !== oldValue) {
-                        if (!newValue || newValue === '') {
-                            vm.searchResults = [];
-                            vm.loadingInterface = false;
-                            vm.showResults = false;
-                        } else {
-                            if (newValue.length >= 1) {
-                                vm.loadingInterface = true;
-                                vm.showResults = true;
-
-                                vm.canceller.resolve();
-                                clearTimeout(vm.timer);
-
-                                vm.timer = setTimeout(() => {
-                                    vm.performSearch();
-                                }, 300);
-                            }
-                        }
-                    }
-                }
-
-                vm.ignoreSearch = false;
-            }
-        },
-        methods: {
-            performSearch() {
-                let vm = this;
-
-                vm.canceller = Promise;
-                vm.loadingInterface = true;
-                vm.searchResults.length = 0;
-
-                this.$emit('search', {
-                    query: vm.model,
-                    timeout: vm.canceller
-                })
-            },
-
-            selectResult(result) {
-                let vm = this;
-
-                vm.$emit('select', result);
-
-                for (let i = 0; i < this.searchResults.length; i++) {
-                    let target = this.searchResults[i];
-
-                    if (result.email === target.email) {
-                        this.searchResults.splice(i, 1);
-                    }
-                }
-
-                if (this.searchResults.length === 0) {
-                    setTimeout(() => {
-                        vm.interface = '';
-                        vm.showResults = false;
-                        vm.loadingInterface = false;
-                    }, 100)
-                }
-            },
-
-            blur() {
-                let vm = this;
-
-                setTimeout(() => {
-                    vm.$emit('blur')
-                }, 200)
-            },
-
-            noResults() {
-                let vm = this;
-
-                setTimeout(() => {
-                    vm.showResults = false;
-                    vm.loadingInterface = false;
-                }, 100);
-
-                vm.$emit('no-results');
-            },
-
-            clickOutside($event) {
-                let path = $event.path;
-
-                for (let i = 0; i < path.length; i++) {
-                    let target = path[i];
-
-                    if (target.id === 'email-search-form') {
-                        return;
-                    }
-                }
-
-                this.showResults = false;
-                this.loadingInterface = false;
-
-                this.$emit('click-outside')
-            },
-
-            searchIsEmail() {
-                return EmailUtility.validateEmailAddress(this.model);
             }
         }
     }
-</script>
+    ignoreSearch.value = false;
+});
 
-<style scoped>
-    .wrapper {
-        position: relative;
+function performSearch() {
+    loading.value = true;
+    searchResults.value = [];
+    emit('search', { query: modelValue.value });
+}
+
+function selectResult(result) {
+    emit('select', result);
+    searchResults.value = searchResults.value.filter(r => r.email !== result.email);
+
+    if (searchResults.value.length === 0) {
+        setTimeout(() => {
+            modelValue.value = '';
+            showResults.value = false;
+            loading.value = false;
+        }, 100);
     }
-</style>
+}
+
+function onBlur() {
+    setTimeout(() => {
+        emit('blur');
+    }, 200);
+}
+
+function noResults() {
+    setTimeout(() => {
+        showResults.value = false;
+        loading.value = false;
+    }, 100);
+    emit('no-results');
+}
+
+function clickOutside(event) {
+    if (event.target.closest('#email-search-form')) {
+        return;
+    }
+    showResults.value = false;
+    loading.value = false;
+    emit('click-outside');
+}
+
+const searchIsEmail = computed(() => {
+    return EmailUtility.validateEmailAddress(modelValue.value);
+});
+</script>

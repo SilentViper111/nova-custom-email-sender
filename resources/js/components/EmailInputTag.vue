@@ -1,189 +1,157 @@
 <template>
     <div
-        @click="focusNewTag()"
+        @click="focusNewTag"
         :class="{
             'read-only': readOnly,
-            'vue-input-tag-wrapper--active': isInputActive,
+            'border-blue-500': isInputActive,
         }"
-        class="vue-input-tag-wrapper"
+        class="flex flex-wrap items-center p-2 border rounded"
     >
-        <span v-for="(tag, index) in innerTags" :key="index" class="input-tag">
+        <span v-for="(tag, index) in innerTags" :key="index" class="inline-flex items-center px-2 py-1 mr-2 text-sm font-medium text-white bg-blue-500 rounded">
             <span>{{ tag }}</span>
-            <a v-if="!readOnly" @click.prevent.stop="remove(index)" class="remove"></a>
+            <a v-if="!readOnly" @click.prevent.stop="remove(index)" class="ml-2 text-white cursor-pointer">&times;</a>
         </span>
         <input
-                v-if="!readOnly && !isLimit"
-                ref="inputtag"
-                :placeholder= "placeholder"
-                type= "text"
-                v-model= "newTag"
-                v-on:keydown.delete.stop="removeLastTag"
-                v-on:keydown= "addNew"
-                v-on:blur= "handleInputBlur"
-                v-on:focus= "handleInputFocus"
-                :class= "cssClasses"
-                @keydown.stop="handleKeydown"
+            v-if="!readOnly && !isLimit"
+            ref="inputtag"
+            :placeholder="placeholder"
+            type="text"
+            v-model="newTag"
+            @keydown.delete.stop="removeLastTag"
+            @keydown="addNew"
+            @blur="handleInputBlur"
+            @focus="handleInputFocus"
+            class="flex-1 bg-transparent focus:outline-none"
+            @keydown.stop
         />
     </div>
 </template>
 
-<script>
-    export default {
-        name: "EmailInputTag",
+<script setup>
+import { ref, computed, watch } from 'vue';
 
-        props: {
-            value: {
-                type: Array,
-                default: () => []
-            },
-            placeholder: {
-                type: String,
-                default: ""
-            },
-            readOnly: {
-                type: Boolean,
-                default: false
-            },
-            validate: {
-                type: String | Function | Object,
-                default: ""
-            },
-            addTagOnKeys: {
-                type: Array,
-                default: function() {
-                    return [
-                        13, // Return
-                        188, // Comma ','
-                        9 // Tab
-                    ];
-                }
-            },
-            addTagOnBlur: {
-                type: Boolean,
-                default: false
-            },
-            limit: {
-                type: Number,
-                default: -1
-            },
-            allowDuplicates: {
-                type: Boolean,
-                default: false
-            }
-        },
+const props = defineProps({
+    modelValue: {
+        type: Array,
+        default: () => [],
+    },
+    placeholder: {
+        type: String,
+        default: '',
+    },
+    readOnly: {
+        type: Boolean,
+        default: false,
+    },
+    validate: {
+        type: [String, Function, Object],
+        default: '',
+    },
+    addTagOnKeys: {
+        type: Array,
+        default: () => [13, 188, 9],
+    },
+    addTagOnBlur: {
+        type: Boolean,
+        default: false,
+    },
+    limit: {
+        type: Number,
+        default: -1,
+    },
+    allowDuplicates: {
+        type: Boolean,
+        default: false,
+    },
+});
 
-        data() {
-            return {
-                newTag: "",
-                innerTags: [...this.value],
-                isInputActive: false
-            };
-        },
+const emit = defineEmits(['update:modelValue']);
 
-        computed: {
-            isLimit: function() {
-                return this.limit > 0 && Number(this.limit) === this.innerTags.length;
-            },
-            cssClasses() {
-                return `new-tag`
-            }
-        },
+const newTag = ref('');
+const innerTags = ref([...props.modelValue]);
+const isInputActive = ref(false);
+const inputtag = ref(null);
 
-        methods: {
-            handleKeydown() {
-                // resets default
-            },
+const isLimit = computed(() => {
+    return props.limit > 0 && Number(props.limit) === innerTags.value.length;
+});
 
-            focusNewTag() {
-                if (this.readOnly || !this.$el.querySelector(".new-tag")) {
-                    return;
-                }
-                this.$el.querySelector(".new-tag").focus();
-            },
+watch(() => props.modelValue, (newValue) => {
+    innerTags.value = [...newValue];
+});
 
-            handleInputFocus() {
-                this.isInputActive = true;
-            },
+function focusNewTag() {
+    if (props.readOnly || !inputtag.value) {
+        return;
+    }
+    inputtag.value.focus();
+}
 
-            handleInputBlur(e) {
-                this.isInputActive = false;
-                this.addNew(e);
-            },
+function handleInputFocus() {
+    isInputActive.value = true;
+}
 
-            addNew(e) {
-                const keyShouldAddTag = e
-                    ? this.addTagOnKeys.indexOf(e.keyCode) !== -1
-                    : true;
+function handleInputBlur(e) {
+    isInputActive.value = false;
+    if (props.addTagOnBlur) {
+        addNew(e);
+    }
+}
 
-                const typeIsNotBlur = e && e.type !== "blur";
+function addNew(e) {
+    const keyShouldAddTag = e ? props.addTagOnKeys.includes(e.keyCode) : true;
+    const typeIsNotBlur = e && e.type !== 'blur';
 
-                if (
-                    (!keyShouldAddTag && (typeIsNotBlur || !this.addTagOnBlur)) ||
-                    this.isLimit
-                ) {
-                    return;
-                }
+    if ((!keyShouldAddTag && typeIsNotBlur) || isLimit.value) {
+        return;
+    }
 
-                if (
-                    this.newTag &&
-                    (this.allowDuplicates || this.innerTags.indexOf(this.newTag) === -1) &&
-                    this.validateIfNeeded(this.newTag)
-                ) {
-                    this.innerTags.push(this.newTag);
-                    this.newTag = "";
-                    this.tagChange();
+    if (
+        newTag.value &&
+        (props.allowDuplicates || !innerTags.value.includes(newTag.value)) &&
+        validateIfNeeded(newTag.value)
+    ) {
+        innerTags.value.push(newTag.value);
+        newTag.value = '';
+        tagChange();
+        e && e.preventDefault();
+    }
+}
 
-                    e && e.preventDefault();
-                }
-            },
+function validateIfNeeded(tagValue) {
+    if (!props.validate) {
+        return true;
+    }
 
-            validateIfNeeded(tagValue) {
-                if (this.validate === "" || this.validate === undefined) {
-                    return true;
-                }
+    if (typeof props.validate === 'function') {
+        return props.validate(tagValue);
+    }
 
-                if (typeof this.validate === "function") {
-                    return this.validate(tagValue);
-                }
+    if (typeof props.validate === 'string' && /.+@.+\..+/.test(tagValue)) {
+        return true;
+    }
 
-                if (
-                    typeof this.validate === "string" &&
-                    Object.keys(validators).indexOf(this.validate) > -1
-                ) {
-                    return validators[this.validate].test(tagValue);
-                }
+    if (typeof props.validate === 'object' && props.validate.test) {
+        return props.validate.test(tagValue);
+    }
 
-                if (
-                    typeof this.validate === "object" &&
-                    this.validate.test !== undefined
-                ) {
-                    return this.validate.test(tagValue);
-                }
+    return false;
+}
 
-                return true;
-            },
+function remove(index) {
+    innerTags.value.splice(index, 1);
+    tagChange();
+}
 
-            remove(index) {
-                this.innerTags.splice(index, 1);
-                this.tagChange();
-            },
+function removeLastTag() {
+    if (newTag.value) {
+        return;
+    }
+    innerTags.value.pop();
+    tagChange();
+}
 
-            removeLastTag() {
-                if (this.newTag) {
-                    return;
-                }
-                this.innerTags.pop();
-                this.tagChange();
-            },
-
-            tagChange() {
-                this.$emit("update:tags", this.innerTags);
-                this.$emit("input", this.innerTags);
-            }
-        }
-    };
+function tagChange() {
+    emit('update:modelValue', innerTags.value);
+}
 </script>
-
-<style scoped>
-
-</style>

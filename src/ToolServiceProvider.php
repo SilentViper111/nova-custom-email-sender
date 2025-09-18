@@ -3,7 +3,6 @@
 namespace Dniccum\CustomEmailSender;
 
 use Laravel\Nova\Nova;
-use Laravel\Nova\Events\ServingNova;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Dniccum\CustomEmailSender\Http\Middleware\Authorize;
@@ -20,7 +19,7 @@ class ToolServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'custom-email-sender');
-        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'custom-email-sender');
+        $this->loadJsonTranslationsFrom(__DIR__.'/../resources/lang');
 
         $this->app->booted(function () {
             $this->routes();
@@ -36,14 +35,9 @@ class ToolServiceProvider extends ServiceProvider
             __DIR__.'/../resources/views/email.blade.php' => resource_path('views/vendor/custom-email-sender/email.blade.php'),
         ], 'views');
 
-        $this->publishes([
-            __DIR__.'/../resources/lang' => resource_path('lang/vendor/custom-email-sender'),
-        ], 'lang');
-
-
-        Nova::serving(function (ServingNova $event) {
-
-        });
+        Nova::tools([
+            new \Dniccum\CustomEmailSender\CustomEmailSender,
+        ]);
     }
 
     /**

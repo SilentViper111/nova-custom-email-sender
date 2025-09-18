@@ -11,11 +11,9 @@
 </template>
 
 <script>
-    export default {
-        name: "MessageFormWrapper"
-    }
+import { defineComponent } from 'vue';
+
+export default defineComponent({
+    name: "MessageFormWrapper"
+});
 </script>
-
-<style scoped>
-
-</style>

@@ -5,7 +5,7 @@
       <toggle-button
         :width="60"
         :height="26"
-        color="var(--primary)"
+        :color="{checked: '#21b978', unchecked: '#89a5b7'}"
         v-model="createCalendarEvent"
         :disabled="loading"
       />
@@ -17,74 +17,59 @@
         </p>
         <form
           id="email-search-form"
-          @submit.prevent="searchSubmit"
+          @submit.prevent
           class="flex flex-wrap"
         >
           <div class="w-full">
-            <h3 slot="default" class="text-sm tracking-wide text-80">
+            <h3 class="text-sm tracking-wide text-gray-500">
               {{ messages["event-title"] }}
             </h3>
             <div class="py-2 pr-2">
               <input
                 v-model="eventTitle"
-                @change="changeData()"
+                @change="changeData"
                 class="block w-full form-control-sm form-input form-input-bordered"
               />
             </div>
           </div>
 
-          <!-- <div class="w-1/4">
-            <h3 slot="default" class="text-sm tracking-wide text-80">
-              {{ messages["event-full-day"] }}
-            </h3>
-            <toggle-button
-              class="py-2"
-              :width="60"
-              :height="26"
-              color="var(--primary)"
-              v-model="eventFullDay"
-              :disabled="loading"
-              @change="changeData()"
-            />
-          </div> -->
-
           <div class="w-1/2" v-if="!eventFullDay">
-            <h3 slot="default" class="text-sm tracking-wide text-80">
+            <h3 class="text-sm tracking-wide text-gray-500">
               {{ messages["event-date-from"] }}
             </h3>
             <div class="py-2 mr-2">
               <flat-pickr
                 v-model="eventDateFrom"
                 class="block w-full form-control-sm form-select"
-                :config="config"
-                @input="changeData()"
+                :config="flatpickrConfig"
+                @input="changeData"
               ></flat-pickr>
             </div>
           </div>
 
           <div class="w-1/2" v-if="!eventFullDay">
-            <h3 slot="default" class="text-sm tracking-wide text-80">
+            <h3 class="text-sm tracking-wide text-gray-500">
               {{ messages["event-date-to"] }}
             </h3>
             <div class="py-2">
               <flat-pickr
                 v-model="eventDateTo"
                 class="block w-full form-control-sm form-select"
-                :config="config"
-                @input="changeData()"
+                :config="flatpickrConfig"
+                @input="changeData"
               ></flat-pickr>
             </div>
           </div>
 
           <div class="w-full">
-            <h3 slot="default" class="text-sm tracking-wide text-80">
+            <h3 class="text-sm tracking-wide text-gray-500">
               {{ messages["event-description"] }}
             </h3>
             <div class="py-2">
               <textarea
                 v-model="eventDescription"
                 rows="4"
-                @change="changeData()"
+                @change="changeData"
                 class="block w-full form-input-bordered py-2"
               ></textarea>
             </div>
@@ -95,82 +80,62 @@
   </div>
 </template>
 
-<script>
-import EmailInputTag from "./EmailInputTag";
-import AutoCompleteInput from "./AutoCompleteInput";
-import { ToggleButton } from "vue-js-toggle-button";
+<script setup>
+import { ref, computed } from 'vue';
+import { ToggleButton } from '@hennge/vue3-toggle-button';
+import flatPickr from 'vue-flatpickr-component';
+import 'flatpickr/dist/flatpickr.css';
 
-import flatPickr from "vue-flatpickr-component";
-import "flatpickr/dist/flatpickr.css";
-
-export default {
-  name: "EventForm",
-  components: {
-    flatPickr,
-    EmailInputTag,
-    ToggleButton,
-    AutoCompleteInput,
-  },
-  props: {
+const props = defineProps({
     messages: Object,
-  },
-  data() {
-    return {
-      config: {
-        dateFormat: "d.m.Y H:i",
-        enableTime: true,
-        allowInput: true,
-      },
-      eventTitle: "",
-      eventDescription: "",
-      eventFullDay: false,
-      eventDateFrom: null,
-      eventDateTo: null,
-      createEvent: false,
-    };
-  },
-  async mounted() {},
-  computed: {
-    createCalendarEvent: {
-      get() {
-        return this.createEvent;
-      },
-      set(val) {
-        this.createEvent = val;
-        this.$emit("createEventChange", val);
-      },
+    loading: Boolean,
+});
+
+const emit = defineEmits(['createEventChange', 'changeData']);
+
+const flatpickrConfig = ref({
+    dateFormat: 'd.m.Y H:i',
+    enableTime: true,
+    allowInput: true,
+});
+
+const eventTitle = ref('');
+const eventDescription = ref('');
+const eventFullDay = ref(false);
+const eventDateFrom = ref(null);
+const eventDateTo = ref(null);
+const createEvent = ref(false);
+
+const createCalendarEvent = computed({
+    get: () => createEvent.value,
+    set: (val) => {
+        createEvent.value = val;
+        emit('createEventChange', val);
     },
-  },
-  methods: {
-    changeData() {
-      this.$emit("changeData", {
-        eventTitle: this.eventTitle,
-        eventDescription: this.eventDescription,
-        eventFullDay: this.eventFullDay,
-        eventDateFrom: this.eventDateFrom,
-        eventDateTo: this.eventDateTo,
-      });
-    },
-  },
-};
+});
+
+function changeData() {
+    emit('changeData', {
+        eventTitle: eventTitle.value,
+        eventDescription: eventDescription.value,
+        eventFullDay: eventFullDay.value,
+        eventDateFrom: eventDateFrom.value,
+        eventDateTo: eventDateTo.value,
+    });
+}
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s;
-}
-.fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
-  opacity: 0;
-}
 .slide-fade-enter-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-out;
 }
+
 .slide-fade-leave-active {
   transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
 }
-.slide-fade-enter, .slide-fade-leave-to
-        /* .slide-fade-leave-active below version 2.1.8 */ {
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
   transform: translateX(10px);
   opacity: 0;
 }

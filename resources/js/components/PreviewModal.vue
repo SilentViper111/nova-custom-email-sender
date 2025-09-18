@@ -1,96 +1,60 @@
 <template>
-    <div class="modal-wrapper fixed w-screen h-screen pin z-30 flex flex-col items-center justify-center" v-show="visible">
-        <div class="background absolute w-full h-full" style="background-color: var(--primary); opacity: .8"></div>
-        <button class="btn btn-default btn-white text-primary z-10 mb-8" type="button" @click="close">
+    <div class="fixed inset-0 z-30 flex flex-col items-center justify-center bg-black bg-opacity-80" v-show="visible">
+        <button class="px-4 py-2 bg-white text-blue-500 rounded hover:bg-gray-100 z-10 mb-8" type="button" @click="close">
             {{ closeCopy }}
         </button>
-        <div class="iframe-wrapper relative z-10">
-            <iframe id="preview-frame" class="absolute w-full h-full pin rounded-lg"></iframe>
+        <div class="relative z-10 w-[600px] h-[calc(80vh-60px)]">
+            <iframe id="preview-frame" class="absolute w-full h-full rounded-lg"></iframe>
         </div>
-        <button class="btn btn-default btn-white text-primary z-10 mt-8" type="button" @click="close">
+        <button class="px-4 py-2 bg-white text-blue-500 rounded hover:bg-gray-100 z-10 mt-8" type="button" @click="close">
             {{ closeCopy }}
         </button>
     </div>
 </template>
 
-<script>
-    import Translations from "../mixins/Translations";
+<script setup>
+import { ref, computed } from 'vue';
+import TranslationService from '../services/TranslationService';
 
-    export default {
-        name: "PreviewModal",
-        mixins: [
-            Translations,
-        ],
-        data() {
-            return {
-                visible: false,
-                previewContent: null
-            }
-        },
-        mounted() {
-            let vm = this;
+const visible = ref(false);
 
-            Nova.$on('show-email-preview', (response) => {
-                vm.visible = true;
-                document.getElementById('preview-frame').contentWindow.document.write(response);
-            })
-        },
-        computed: {
-            /**
-             * @return {string}
-             */
-            closeCopy() {
-                return this.messages['close']
-            }
-        },
-        methods: {
-            close() {
-                this.visible = false;
-                document.getElementById('preview-frame').contentWindow.document.body.innerHTML = '';
-            },
+const messages = ref(TranslationService.localization);
 
-            /**
-             * @name preview
-             * @param {string} from
-             * @param {string} subject
-             * @param {array} recipients
-             * @param {string} htmlContent
-             * @param {boolean} sendToAll
-             */
-            preview(from, subject, recipients, htmlContent, sendToAll = false) {
-                let vm = this;
+const closeCopy = computed(() => messages.value['close']);
 
-                this.$emit('preview', true)
+function close() {
+    visible.value = false;
+    const iframe = document.getElementById('preview-frame');
+    if (iframe) {
+        iframe.contentWindow.document.body.innerHTML = '';
+    }
+}
 
-                Nova.request().post('/nova-vendor/custom-email-sender/preview', {
-                    from,
-                    subject,
-                    recipients,
-                    htmlContent,
-                    sendToAll,
-                }).then(response => {
-                    document.getElementById('preview-frame').contentWindow.document.write(response.data.content);
-                    vm.visible = true;
-                    this.$emit('preview', false)
-                }).catch(error => {
-                    let response = error.response;
-                    let status = response.status
-
-                    if (status === 422) {
-                        this.$toasted.show(response.data.message, {type: 'error'})
-                    } else {
-                        this.$toasted.show(response.statusText, {type: 'error'})
-                    }
-                    this.$emit('preview', false)
-                });
-            },
+async function preview(from, subject, recipients, htmlContent, sendToAll = false) {
+    try {
+        const response = await Nova.request().post('/nova-vendor/custom-email-sender/preview', {
+            from,
+            subject,
+            recipients,
+            htmlContent,
+            sendToAll,
+        });
+        const iframe = document.getElementById('preview-frame');
+        if (iframe) {
+            iframe.contentWindow.document.write(response.data.content);
+        }
+        visible.value = true;
+    } catch (error) {
+        const response = error.response;
+        if (response.status === 422) {
+            alert(response.data.message);
+        } else {
+            alert(response.statusText);
         }
     }
-</script>
+}
 
-<style scoped>
-    .iframe-wrapper {
-        width: 600px;
-        height: calc(80vh - 60px);
-    }
-</style>
+defineExpose({
+    preview,
+});
+</script>

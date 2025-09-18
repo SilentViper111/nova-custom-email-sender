@@ -1,115 +1,75 @@
 <template>
-    <div class="input-wrapper w-full">
+    <div class="relative w-full">
         <input
-                ref="inputtag"
-                class="form-control form-input form-input-bordered w-full"
-                :placeholder="placeholder"
-                type="text"
-                v-model="interface"
-                v-on:keydown="addNew"
-                :disabled="disabled"
+            ref="inputtag"
+            class="form-control form-input form-input-bordered w-full pr-12"
+            :placeholder="placeholder"
+            type="text"
+            v-model="modelValue"
+            @keydown="addNew"
+            :disabled="disabled"
         />
-        <div class="counter" :style="counterColor()" v-if="interface && interface.length > 0">
-            {{ counterNumber() }}
+        <div
+            class="absolute w-10 h-9 right-0 top-0 flex justify-center items-center"
+            :class="counterClasses"
+            v-if="modelValue && modelValue.length > 0"
+        >
+            {{ counterNumber }}
         </div>
     </div>
 </template>
 
-<script>
-    export default {
-        name: "CounterInput",
-        props: {
-            model: String,
-            placeholder: String,
-            limit: {
-                type: Number,
-                default: () => {
-                    return 60
-                }
-            },
-            disabled: {
-                type: Boolean,
-                default: false
-            }
-        },
-        mounted() {
-            //
-        },
-        computed: {
-            interface: {
-                get() {
-                    return this.model
-                },
-                set(val) {
-                    this.$emit('update:model', val)
-                }
-            },
-            isLimit: function() {
-                return this.limit > 0 && this.interface && Number(this.limit) === this.interface.length;
-            },
-        },
-        methods: {
-            addNew(e) {
-                let allowedKeys = [
-                    8,
-                    9,
-                    16,
-                    17,
-                    18,
-                    91,
-                    93,
-                ];
+<script setup>
+import { ref, computed } from 'vue';
 
-                if (allowedKeys.indexOf(e.which) >= 0 || !this.isLimit) {
-                    return;
-                }
+const props = defineProps({
+    modelValue: String,
+    placeholder: String,
+    limit: {
+        type: Number,
+        default: 60,
+    },
+    disabled: {
+        type: Boolean,
+        default: false,
+    },
+});
 
-                this.interface = this.interface.substring(0, this.limit);
-                e && e.preventDefault();
-            },
+const emit = defineEmits(['update:modelValue']);
 
-            counterNumber() {
-                return this.limit - this.interface.length;
-            },
+const inputtag = ref(null);
 
-            counterColor() {
-                if (this.counterNumber() <= 30 && this.counterNumber() > 10) {
-                    return {
-                        color: 'var(--warning)',
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold'
-                    }
-                } else if (this.counterNumber() <= 10 && this.counterNumber() >= 0) {
-                    return {
-                        color: 'var(--danger)',
-                        fontSize: '1.3rem',
-                        fontWeight: 'bold'
-                    }
-                } else {
-                    return {
-                        color: 'var(--80)'
-                    }
-                }
-            }
-        }
+const modelValue = computed({
+    get: () => props.modelValue,
+    set: (value) => emit('update:modelValue', value),
+});
+
+const isLimit = computed(() => {
+    return props.limit > 0 && modelValue.value && Number(props.limit) === modelValue.value.length;
+});
+
+function addNew(e) {
+    const allowedKeys = [8, 9, 16, 17, 18, 91, 93];
+
+    if (allowedKeys.includes(e.which) || !isLimit.value) {
+        return;
     }
+
+    modelValue.value = modelValue.value.substring(0, props.limit);
+    e && e.preventDefault();
+}
+
+const counterNumber = computed(() => {
+    return props.limit - (modelValue.value?.length || 0);
+});
+
+const counterClasses = computed(() => {
+    if (counterNumber.value <= 30 && counterNumber.value > 10) {
+        return 'text-yellow-500 text-lg font-bold';
+    } else if (counterNumber.value <= 10 && counterNumber.value >= 0) {
+        return 'text-red-500 text-xl font-bold';
+    } else {
+        return 'text-gray-500';
+    }
+});
 </script>
-
-<style scoped>
-    .input-wrapper {
-        position: relative;
-    }
-    .input-wrapper .form-input {
-        padding-right: 46px;
-    }
-    .counter {
-        position: absolute;
-        width: 40px;
-        height: 35px;
-        right: 0;
-        top: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-</style>

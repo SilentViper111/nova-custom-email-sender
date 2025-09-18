@@ -5,13 +5,13 @@
             <toggle-button
                 :width="60"
                 :height="26"
-                color="var(--primary)"
-                v-model="sendToAllInterface"
+                :color="{checked: '#21b978', unchecked: '#89a5b7'}"
+                v-model="sendToAll"
                 :disabled="loading"
             />
         </div>
         <transition name="slide-fade">
-            <div v-if="!sendToAllInterface">
+            <div v-if="!sendToAll">
                 <p class="mb-2">
                     {{ messages["recipients-manual-input-copy"] }}
                 </p>
@@ -23,9 +23,9 @@
                     <auto-complete-input
                         class="form-control flex-1"
                         name="search"
-                        :loading.sync="loading"
-                        :model.sync="search"
-                        :results.sync="searchResults"
+                        :loading="loading"
+                        v-model="search"
+                        :results="searchResults"
                         @search="performSearch"
                         @select="selectResult"
                         @ad-hoc="addAdHocEmail"
@@ -41,11 +41,11 @@
                     <div id="group-box" class="flex flex-wrap">
                         <label
                             @click="selectGroup(group.id)"
-                            class="btn group-button"
+                            class="px-2 py-1 m-1 border rounded cursor-pointer transition-shadow duration-300"
                             :class="[
                                 isGroupSelected(group.id)
-                                    ? 'group-selected'
-                                    : 'group-unselected',
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-200 text-gray-800',
                             ]"
                             v-for="group in user_groups.filter(group => Object.keys(group.users).length > 0)"
                             :key="group.id"
@@ -58,240 +58,135 @@
     </div>
 </template>
 
-<script>
-import EmailInputTag from "./EmailInputTag";
-import AutoCompleteInput from "./AutoCompleteInput";
-import { ToggleButton } from "vue-js-toggle-button";
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import AutoCompleteInput from "./AutoCompleteInput.vue";
+import { ToggleButton } from '@hennge/vue3-toggle-button'
 import EmailUtility from "../services/EmailUtility";
 import Recipient from "../interfaces/Recipient";
 
-export default {
-    name: "RecipientForm",
-    components: {
-        EmailInputTag,
-        ToggleButton,
-        AutoCompleteInput,
-    },
-    props: {
-        messages: Object,
-        sendToAll: {
-            type: Boolean,
-            default() {
-                return false;
-            },
-        },
-        loading: {
-            type: Boolean,
-            default() {
-                return false;
-            },
-        },
-        recipients: {
-            type: Array,
-            default() {
-                return [];
-            },
-        },
-    },
-    data() {
-        return {
-            // loading: false,
-            searchResults: [],
-            search: "",
-            user_groups: [],
-            selected_groups: [],
-        };
-    },
-    async mounted() {
-        await this.getUserGroups();
-    },
-    computed: {
-        sendToAllInterface: {
-            get() {
-                return this.sendToAll;
-            },
-            set(val) {
-                this.$emit("update:send-to-all", val);
-            },
-        },
-        recipientsInterface: {
-            get() {
-                return this.recipients;
-            },
-            set(val) {
-                this.$emit("update:recipients", val);
-            },
-        },
-    },
-    methods: {
-        getUserGroups() {
-            Nova.request()
-                .get("/nova-vendor/custom-email-sender/get-groups")
-                .then((results) => {
-                    // console.log(results);
-                    this.user_groups = results.data;
-                    // this.searchResults = results.data.map(result => {
-                    //     return new Recipient(result.email, result.name)
-                    // });
-                    // this.loading = false;
-                });
-        },
-        selectGroup(id) {
-            let clickedGroup = this.user_groups.filter(function (group) {
-                return group.id === id;
-            })[0];
+const props = defineProps({
+    messages: Object,
+    sendToAll: Boolean,
+    loading: Boolean,
+    recipients: Array,
+});
 
-            if (this.isGroupSelected(id)) {
-                this.selected_groups = this.selected_groups.filter(function (
-                    group
-                ) {
-                    return group !== id;
-                });
+const emit = defineEmits(['update:sendToAll', 'add', 'addGroup', 'removeGroup']);
 
-                this.$emit("removeGroup", clickedGroup.users);
-            } else {
-                this.selected_groups.push(id);
-                this.$emit("addGroup", clickedGroup.users);
-            }
-        },
+const search = ref('');
+const searchResults = ref([]);
+const user_groups = ref([]);
+const selected_groups = ref([]);
 
-        isGroupSelected(id) {
-            return this.selected_groups.includes(id);
-        },
-        validateEmailAddress() {
-            return EmailUtility.validateEmailAddress(this.search);
-        },
+const sendToAll = computed({
+    get: () => props.sendToAll,
+    set: (value) => emit('update:sendToAll', value)
+});
 
-        addAdHocEmail() {
-            if (
-                this.searchResults.length > 0 ||
-                this.validateEmailAddress() === false
-            ) {
-                return false;
-            }
+async function getUserGroups() {
+    try {
+        const results = await Nova.request().get("/nova-vendor/custom-email-sender/get-groups");
+        user_groups.value = results.data;
+    } catch (error) {
+        console.error(error);
+    }
+}
 
-            this.$emit("add", {
-                name: null,
-                email: this.search,
-            });
+onMounted(getUserGroups);
 
-            this.search = "";
-        },
+function selectGroup(id) {
+    const clickedGroup = user_groups.value.find(group => group.id === id);
+    if (!clickedGroup) return;
 
-        searchSubmit() {
-            if (this.searchResults.length === 1) {
-                this.$emit("add", this.searchResults[0]);
-                this.searchResults.length = 0;
-                this.search = "";
-            } else {
-                this.addAdHocEmail();
-            }
-        },
+    if (isGroupSelected(id)) {
+        selected_groups.value = selected_groups.value.filter(groupId => groupId !== id);
+        emit("removeGroup", clickedGroup.users);
+    } else {
+        selected_groups.value.push(id);
+        emit("addGroup", clickedGroup.users);
+    }
+}
 
-        performSearch($e) {
-            Nova.request()
-                .get("/nova-vendor/custom-email-sender/search", {
-                    params: {
-                        search: $e.query,
-                    },
-                    timeout: $e.timeout,
-                })
-                .then((results) => {
-                    this.searchResults = results.data.map((result) => {
-                        return new Recipient(result.email, result.name);
-                    });
-                    this.loading = false;
-                });
-        },
+function isGroupSelected(id) {
+    return selected_groups.value.includes(id);
+}
 
-        selectResult(result) {
-            for (let i = 0; i < this.searchResults.length; i++) {
-                let target = this.searchResults[i];
+function validateEmailAddress() {
+    return EmailUtility.validateEmailAddress(search.value);
+}
 
-                if (result.email === target.email) {
-                    this.$emit("add", target);
-                }
-            }
-        },
+function addAdHocEmail() {
+    if (searchResults.value.length > 0 || !validateEmailAddress()) {
+        return false;
+    }
 
-        pasteAddresses(event) {
-            let pastedContent = (
-                event.clipboardData || window.clipboardData
-            ).getData("text");
-            let pastedList = pastedContent.split(",");
+    emit("add", { name: null, email: search.value });
+    search.value = "";
+}
 
-            let validPaste = false;
+function searchSubmit() {
+    if (searchResults.value.length === 1) {
+        emit("add", searchResults.value[0]);
+        searchResults.value = [];
+        search.value = "";
+    } else {
+        addAdHocEmail();
+    }
+}
 
-            for (let i = 0; i < pastedList.length; i++) {
-                let target = pastedList[i].trim();
-                let addressExists = false;
-                for (let ii = 0; i < this.recipients.length; ii++) {
-                    if (target === this.recipients[ii].email) {
-                        addressExists = true;
-                        break;
-                    }
-                }
-                if (
-                    EmailUtility.validateEmailAddress(target) &&
-                    !addressExists
-                ) {
-                    validPaste = true;
-                    this.$emit("add", new Recipient(target));
-                }
-            }
+async function performSearch(e) {
+    try {
+        const results = await Nova.request().get("/nova-vendor/custom-email-sender/search", {
+            params: { search: e.query },
+        });
+        searchResults.value = results.data.map(result => new Recipient(result.email, result.name));
+    } catch (error) {
+        console.error(error);
+    }
+}
 
-            setTimeout(() => {
-                if (validPaste) {
-                    this.search = "";
-                } else {
-                    this.$toasted.show(this.messages["invalid-paste"], {
-                        type: "error",
-                    });
-                }
-                this.$forceUpdate();
-            }, 100);
-        },
-    },
-};
+function selectResult(result) {
+    if (searchResults.value.some(r => r.email === result.email)) {
+        emit("add", result);
+    }
+}
+
+function pasteAddresses(event) {
+    const pastedContent = (event.clipboardData || window.clipboardData).getData("text");
+    const pastedList = pastedContent.split(",");
+    let validPaste = false;
+
+    pastedList.forEach(item => {
+        const target = item.trim();
+        if (EmailUtility.validateEmailAddress(target) && !props.recipients.some(r => r.email === target)) {
+            validPaste = true;
+            emit("add", new Recipient(target));
+        }
+    });
+
+    setTimeout(() => {
+        if (validPaste) {
+            search.value = "";
+        } else {
+            Nova.error(props.messages["invalid-paste"]);
+        }
+    }, 100);
+}
 </script>
 
 <style scoped>
-.group-button {
-    border: 1px solid lightgrey;
-    border-radius: 0.5rem;
-    padding: 0.25rem;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    margin: 0.25rem;
-    transition: box-shadow 0.3s;
-    -webkit-user-select: none; /* Safari */
-    -moz-user-select: none; /* Firefox */
-    -ms-user-select: none; /* IE10+/Edge */
-    user-select: none; /* Standard */
-}
-.group-button:hover {
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
-    transition: box-shadow 0.3s;
-}
-.group-selected {
-    background-color: var(--primary);
-}
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.5s;
-}
-.fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
-    opacity: 0;
-}
 .slide-fade-enter-active {
-    transition: all 0.3s ease;
+  transition: all 0.3s ease-out;
 }
+
 .slide-fade-leave-active {
-    transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
+  transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
 }
-.slide-fade-enter, .slide-fade-leave-to
-        /* .slide-fade-leave-active below version 2.1.8 */ {
-    transform: translateX(10px);
-    opacity: 0;
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(10px);
+  opacity: 0;
 }
 </style>
