@@ -1,0 +1,19 @@
+{
+  "resources/css/tool.css": {
+    "file": "assets/tool-7779ef78.css",
+    "isEntry": true,
+    "src": "resources/css/tool.css"
+  },
+  "resources/js/tool.css": {
+    "file": "assets/tool-8feb7761.css",
+    "src": "resources/js/tool.css"
+  },
+  "resources/js/tool.js": {
+    "css": [
+      "assets/tool-8feb7761.css"
+    ],
+    "file": "assets/tool-62fa3b68.js",
+    "isEntry": true,
+    "src": "resources/js/tool.js"
+  }
+}

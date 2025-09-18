@@ -229,7 +229,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
-import { ToggleButton } from '@hennge/vue3-toggle-button';
+import ToggleButton from './ToggleButton.vue';
 import FileUpload from 'vue-upload-component';
 
 import CounterInput from "./CounterInput.vue";
