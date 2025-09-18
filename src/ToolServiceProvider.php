@@ -5,6 +5,7 @@ namespace Dniccum\CustomEmailSender;
 use Laravel\Nova\Nova;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Nova\Events\ServingNova;
 use Dniccum\CustomEmailSender\Http\Middleware\Authorize;
 
 class ToolServiceProvider extends ServiceProvider
@@ -34,10 +35,10 @@ class ToolServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../resources/views/email.blade.php' => resource_path('views/vendor/custom-email-sender/email.blade.php'),
         ], 'views');
-
-        Nova::tools([
-            new \Dniccum\CustomEmailSender\CustomEmailSender,
-        ]);
+        
+        Nova::serving(function (ServingNova $event) {
+            //
+        });
     }
 
     /**
@@ -51,7 +52,10 @@ class ToolServiceProvider extends ServiceProvider
             return;
         }
 
-        Route::middleware(['nova', Authorize::class])
+        Nova::router(['nova', 'nova.auth', Authorize::class], 'custom-email-sender')
+            ->group(__DIR__.'/../routes/inertia.php');
+
+        Route::middleware(['nova', 'nova.auth', Authorize::class])
                 ->prefix('nova-vendor/custom-email-sender')
                 ->group(__DIR__.'/../routes/api.php');
     }
